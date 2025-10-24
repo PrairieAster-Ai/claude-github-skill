@@ -177,12 +177,52 @@ ssh -T git@github.com
 
 MIT License - See LICENSE file
 
+## 📖 Documentation
+
+### **Quick Start**
+- **[Quick Reference Card](docs/quick-reference.md)** - Print this! Emergency reference for common operations
+- **[GitHub Tools Guide](docs/github-tools-guide.md)** - Comprehensive tool selection, authentication, and troubleshooting
+
+### **Templates & Examples**
+- **[Wiki Editing Checklist](templates/wiki-editing-checklist.md)** - Pre-flight checklist
+- **[Business Model Header](templates/business-model-header.md)** - Investor doc template
+- **[Deprecation Warning](templates/deprecation-warning.md)** - Deprecation template
+- **[Memory-Bank Integration](examples/memory-bank-integration.md)** - Integration patterns
+
+### **Validation Scripts**
+- `scripts/validate-wiki.sh` - Comprehensive Wiki validation
+- `scripts/check-tech-stack.sh` - Technology stack consistency
+- `scripts/verify-business-model.sh` - Business model validation
+
+## ⚡ Key Learnings
+
+### **🔴 Critical Lesson #1: SSH for Wiki**
+**Always use SSH authentication for Wiki operations.** Fine-grained tokens will fail with 403.
+
+```bash
+ssh -T git@github.com  # Verify before Wiki operations
+git clone git@github.com:org/repo.wiki.git  # Use SSH URL
+```
+
+### **🔴 Critical Lesson #2: Security Alerts**
+**Personal access tokens cannot access security alerts** (HTTP 403).
+
+**Solution**: Use GitHub Project Manager MCP with enhanced permissions.
+
+### **🔴 Critical Lesson #3: Tool Selection**
+- **Security Operations**: GitHub Project Manager MCP
+- **Bulk Operations**: GitHub CLI
+- **Wiki Operations**: SSH + Git
+- **Visual Review**: Web Interface
+
+**Time Savings**: 4+ hours per week per developer
+
 ## 🙏 Acknowledgments
 
 Built from documented lessons learned across multiple projects, designed for reusability and continuous improvement.
 
 ---
 
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Last Updated**: October 2025
 **Status**: Active Development

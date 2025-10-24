@@ -362,12 +362,52 @@ Work alongside:
 
 ## 📚 References
 
-- Wiki Editing Lessons: `[skill-directory]/templates/wiki-editing-checklist.md`
-- Validation Scripts: `[skill-directory]/scripts/validate-wiki.sh`
-- Business Model Templates: `[skill-directory]/templates/business-model-header.md`
+### **Core Documentation**
+- **GitHub Tools Guide**: `[skill-directory]/docs/github-tools-guide.md` - Comprehensive tool selection, authentication, and troubleshooting
+- **Quick Reference Card**: `[skill-directory]/docs/quick-reference.md` - Emergency reference for common operations
+- **Wiki Editing Checklist**: `[skill-directory]/templates/wiki-editing-checklist.md` - Pre-flight checklist
+- **Memory-Bank Integration**: `[skill-directory]/examples/memory-bank-integration.md` - Integration patterns
+
+### **Validation Scripts**
+- `[skill-directory]/scripts/validate-wiki.sh` - Comprehensive Wiki validation
+- `[skill-directory]/scripts/check-tech-stack.sh` - Technology stack consistency
+- `[skill-directory]/scripts/verify-business-model.sh` - Business model validation
+
+### **Templates**
+- `[skill-directory]/templates/business-model-header.md` - Investor doc template
+- `[skill-directory]/templates/deprecation-warning.md` - Deprecation template
+- `[skill-directory]/templates/wiki-editing-checklist.md` - Pre-flight checklist
+
+## 🔐 Authentication Strategy
+
+**CRITICAL LESSONS**:
+
+### **Lesson 1: SSH Authentication for Wiki**
+**ALWAYS** use SSH for Wiki push operations. Fine-grained tokens will fail with 403.
+
+```bash
+# Before ANY Wiki operation:
+ssh -T git@github.com
+
+# Clone Wiki with SSH:
+git clone git@github.com:org/repo.wiki.git
+```
+
+### **Lesson 2: Security Alerts Require Enhanced Permissions**
+Personal access tokens cannot access security alerts (HTTP 403).
+
+**Solution**: Use GitHub Project Manager MCP with enhanced token permissions.
+
+### **Lesson 3: Tool Selection Based on Task**
+- **Security Operations**: GitHub Project Manager MCP (enhanced permissions)
+- **Bulk Operations**: GitHub CLI (efficiency, scriptability)
+- **Wiki Operations**: GitHub CLI + SSH authentication
+- **Visual Operations**: Web Interface (complex layouts)
+
+**See**: `docs/github-tools-guide.md` for complete decision tree and authentication setup.
 
 ---
 
-**Skill Version**: 1.0.0
+**Skill Version**: 1.1.0
 **Last Updated**: October 2025
-**Designed For**: Multi-project reuse with memory-bank integration
+**Designed For**: Multi-project reuse with memory-bank integration and comprehensive GitHub operations support
