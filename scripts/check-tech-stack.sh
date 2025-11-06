@@ -5,59 +5,53 @@
 
 set -e
 
+# Source shared configuration loader
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/config.sh"
+
 WIKI_DIR="${1:-.}"
 ERRORS=0
+WARNINGS=0
 
 echo "🔧 Checking technology stack references in: $WIKI_DIR"
 echo ""
 
-# Color codes
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
+# Load and display configuration
+load_project_config
 
-# Load project's tech stack if available
-if [ -f "memory-bank/quick-reference.json" ]; then
-    echo "📚 Loading tech stack from memory-bank/quick-reference.json"
-    CURRENT_STACK=$(jq -r '.techStack // empty' memory-bank/quick-reference.json 2>/dev/null)
-    if [ -n "$CURRENT_STACK" ]; then
-        echo "   Current stack: $CURRENT_STACK"
-    fi
+# Display current tech stack if available
+CURRENT_STACK=$(get_tech_stack)
+if [ -n "$CURRENT_STACK" ]; then
+    echo "📚 Current tech stack: $CURRENT_STACK"
     echo ""
 fi
 
-# Common deprecated technologies to check
-DEPRECATED_TECH=(
-    "FastAPI"
-    "Directus"
-    "PostGIS"
-    "Docker Compose"
-    "Flask"
-    "Django"
-    "Express.js:localhost"
-)
+# Load deprecated technologies from config or use defaults
+mapfile -t DEPRECATED_TECH < <(get_deprecated_tech)
+if [ ${#DEPRECATED_TECH[@]} -eq 0 ]; then
+    echo "ℹ️  No project-specific deprecated tech, using defaults"
+    mapfile -t DEPRECATED_TECH < <(get_default_deprecated_tech)
+fi
 
 echo "🔍 Scanning for technology references..."
+echo "   Checking for: ${DEPRECATED_TECH[*]}"
 echo ""
 
+FOUND_TECH=0
 for tech in "${DEPRECATED_TECH[@]}"; do
-    TECH_NAME="${tech%%:*}"
-    CONTEXT="${tech#*:}"
-
-    if grep -rn "$TECH_NAME" "$WIKI_DIR" --include="*.md" 2>/dev/null; then
-        echo -e "${YELLOW}⚠️  Found references to: $TECH_NAME${NC}"
-
-        if [ "$CONTEXT" != "$TECH_NAME" ]; then
-            echo "   Context: $CONTEXT"
-        fi
-
-        echo "   Action: Verify if these references are current or should be deprecated"
-        ((ERRORS++))
+    if MATCHES=$(grep -rn "$tech" "$WIKI_DIR" --include="*.md" 2>/dev/null); then
+        echo -e "${YELLOW}⚠️  Found references to: $tech${NC}"
+        echo ""
+        echo "   Found in:"
+        echo "$MATCHES" | head -5 | sed 's/^/     /'
+        echo ""
+        echo "   ✓ Action: Verify if these references are current or should be deprecated"
+        ((WARNINGS++))
+        FOUND_TECH=1
     fi
 done
 
-if [ $ERRORS -eq 0 ]; then
+if [ $FOUND_TECH -eq 0 ]; then
     echo -e "${GREEN}✅ No deprecated technology references found${NC}"
 fi
 echo ""
@@ -68,18 +62,23 @@ TECH_MENTIONS=$(grep -roh "\(FastAPI\|Vercel\|Neon\|PostgreSQL\|React\|Next\.js\
 
 if [ -n "$TECH_MENTIONS" ]; then
     echo "Technology mention counts:"
-    echo "$TECH_MENTIONS"
+    echo "$TECH_MENTIONS" | sed 's/^/   /'
     echo ""
     echo "Review: Ensure consistent terminology across all Wiki pages"
 fi
+echo ""
 
 # Summary
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-if [ $ERRORS -eq 0 ]; then
+if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
     echo -e "${GREEN}✅ Technology stack validation passed!${NC}"
     exit 0
+elif [ $ERRORS -eq 0 ]; then
+    echo -e "${YELLOW}⚠️  Validation passed with $WARNINGS warnings${NC}"
+    echo "Review technology mentions for consistency"
+    exit 0
 else
-    echo -e "${YELLOW}⚠️  Found $ERRORS technology references to review${NC}"
+    echo -e "${RED}❌ Found $ERRORS technology issues${NC}"
     echo "Check if these technologies are still in use or need deprecation warnings"
     exit 1
 fi

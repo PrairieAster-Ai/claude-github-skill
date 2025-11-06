@@ -5,26 +5,24 @@
 
 set -e
 
+# Source shared configuration loader
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/config.sh"
+
 WIKI_DIR="${1:-.}"
 ERRORS=0
+WARNINGS=0
 
 echo "💼 Validating business model consistency in: $WIKI_DIR"
 echo ""
 
-# Color codes
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
+# Load and display configuration
+load_project_config
 
-# Load business context from memory-bank if available
-BUSINESS_FOCUS=""
-if [ -f "memory-bank/quick-reference.json" ]; then
-    echo "📚 Loading business context from memory-bank"
-    BUSINESS_FOCUS=$(jq -r '.businessFocus // empty' memory-bank/quick-reference.json 2>/dev/null)
-    if [ -n "$BUSINESS_FOCUS" ]; then
-        echo "   Current focus: $BUSINESS_FOCUS"
-    fi
+# Display business context if available
+BUSINESS_FOCUS=$(get_business_focus)
+if [ -n "$BUSINESS_FOCUS" ]; then
+    echo "📚 Current business focus: $BUSINESS_FOCUS"
     echo ""
 fi
 
@@ -41,22 +39,18 @@ if [ $B2B_COUNT -gt 0 ] && [ $B2C_COUNT -gt 0 ]; then
     echo "   Verify these are clearly distinguished (current focus vs future possibilities)"
     echo ""
     echo "B2B references found in:"
-    grep -rn "B2B" "$WIKI_DIR" --include="*.md" 2>/dev/null | head -5
-    ((ERRORS++))
+    grep -rn "B2B" "$WIKI_DIR" --include="*.md" 2>/dev/null | head -5 | sed 's/^/     /'
+    ((WARNINGS++))
 fi
 echo ""
 
 # Check 2: Investor-facing documents have business model headers
 echo "📋 Checking for business model headers in investor docs..."
-INVESTOR_DOCS=(
-    "Investment"
-    "Executive"
-    "Financial"
-    "Business"
-    "Strategy"
-    "Pitch"
-    "Deck"
-)
+
+mapfile -t INVESTOR_DOCS < <(get_investor_doc_types)
+if [ ${#INVESTOR_DOCS[@]} -eq 0 ]; then
+    mapfile -t INVESTOR_DOCS < <(get_default_investor_doc_types)
+fi
 
 MISSING_HEADERS=0
 for doc_type in "${INVESTOR_DOCS[@]}"; do
@@ -76,7 +70,7 @@ if [ $MISSING_HEADERS -gt 0 ]; then
     echo ""
     echo -e "${YELLOW}⚠️  $MISSING_HEADERS investor documents missing business model headers${NC}"
     echo "   Add business model section using templates/business-model-header.md"
-    ((ERRORS++))
+    ((WARNINGS++))
 else
     echo -e "${GREEN}✅ All investor documents have business model headers${NC}"
 fi
@@ -90,22 +84,21 @@ CONTRADICTIONS=0
 NOT_PURSUING=$(grep -rn "NOT Pursuing\|not pursuing\|are not in current" "$WIKI_DIR" --include="*.md" 2>/dev/null)
 if [ -n "$NOT_PURSUING" ]; then
     echo "Found explicit exclusions:"
-    echo "$NOT_PURSUING" | head -5
+    echo "$NOT_PURSUING" | head -5 | sed 's/^/   /'
     echo ""
 fi
 
 # Check if excluded items are mentioned elsewhere positively
 if echo "$NOT_PURSUING" | grep -q "B2B"; then
-    if grep -rn "B2B.*feature\|B2B.*capability\|developing.*B2B" "$WIKI_DIR" --include="*.md" 2>/dev/null | grep -v "NOT Pursuing"; then
+    if grep -rn "B2B.*feature\|B2B.*capability\|developing.*B2B" "$WIKI_DIR" --include="*.md" 2>/dev/null | grep -v "NOT Pursuing" >/dev/null; then
         echo -e "${RED}❌ Found contradictory B2B claims${NC}"
         echo "   Document says 'NOT Pursuing B2B' but also mentions developing B2B features"
-        ((CONTRADICTIONS++))
+        ((ERRORS++))
+        CONTRADICTIONS=1
     fi
 fi
 
-if [ $CONTRADICTIONS -gt 0 ]; then
-    ((ERRORS++))
-else
+if [ $CONTRADICTIONS -eq 0 ]; then
     echo -e "${GREEN}✅ No contradictory claims found${NC}"
 fi
 echo ""
@@ -116,25 +109,29 @@ REVENUE_MODELS=$(grep -roh "ad-supported\|subscription\|SaaS\|transaction fee\|m
 
 if [ -n "$REVENUE_MODELS" ]; then
     echo "Revenue model mentions:"
-    echo "$REVENUE_MODELS"
+    echo "$REVENUE_MODELS" | sed 's/^/   /'
     echo ""
 
     MODEL_COUNT=$(echo "$REVENUE_MODELS" | wc -l)
     if [ $MODEL_COUNT -gt 2 ]; then
         echo -e "${YELLOW}⚠️  Multiple revenue models mentioned${NC}"
         echo "   Clarify which is primary vs future possibilities"
-        ((ERRORS++))
+        ((WARNINGS++))
     fi
 fi
 echo ""
 
 # Summary
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-if [ $ERRORS -eq 0 ]; then
+if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
     echo -e "${GREEN}✅ Business model validation passed!${NC}"
     exit 0
+elif [ $ERRORS -eq 0 ]; then
+    echo -e "${YELLOW}⚠️  Validation passed with $WARNINGS warnings${NC}"
+    echo "Review business model consistency warnings"
+    exit 0
 else
-    echo -e "${YELLOW}⚠️  Found $ERRORS business model consistency issues${NC}"
-    echo "Review warnings above and update documentation for clarity"
+    echo -e "${RED}❌ Found $ERRORS business model issues${NC}"
+    echo "Fix critical business model inconsistencies before publishing"
     exit 1
 fi
